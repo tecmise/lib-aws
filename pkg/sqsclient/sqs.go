@@ -19,10 +19,11 @@ type SQSClient struct {
 	Region      string
 	EndpointURL string
 	logger      *logrus.Entry
+	context     context.Context
 }
 
 // NewSQSClient cria e configura um novo cliente SQS.
-func NewSQSClient(ctx context.Context, region, endpointURL, queueName string) (*SQSClient, error) {
+func NewSQSClient(ctx context.Context, region, endpointURL, queueName string, awsKey string, awsSecret string) (*SQSClient, error) {
 	logger := logrus.WithFields(logrus.Fields{
 		"component":  "SQSClient",
 		"queue_name": queueName,
@@ -43,7 +44,7 @@ func NewSQSClient(ctx context.Context, region, endpointURL, queueName string) (*
 	})
 
 	// Credenciais "falsas" para acionar a assinatura SigV4
-	creds := credentials.NewStaticCredentialsProvider("test", "test", "")
+	creds := credentials.NewStaticCredentialsProvider(awsKey, awsSecret, "")
 
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion(region),
@@ -74,18 +75,19 @@ func NewSQSClient(ctx context.Context, region, endpointURL, queueName string) (*
 		Region:      region,
 		EndpointURL: endpointURL,
 		logger:      logger.WithField("queue_url", queueURL),
+		context:     context.Background(),
 	}, nil
 }
 
 // SendMessage envia uma mensagem para a fila.
-func (c *SQSClient) SendMessage(ctx context.Context, messageBody string) (*sqs.SendMessageOutput, error) {
+func (c *SQSClient) SendMessage(messageBody string) (*sqs.SendMessageOutput, error) {
 	c.logger.Infof("Enviando mensagem...")
 	input := &sqs.SendMessageInput{
 		MessageBody: aws.String(messageBody),
 		QueueUrl:    aws.String(c.QueueURL),
 	}
 
-	result, err := c.Client.SendMessage(ctx, input)
+	result, err := c.Client.SendMessage(c.context, input)
 	if err != nil {
 		c.logger.WithError(err).Error("Falha ao enviar mensagem")
 		return nil, fmt.Errorf("falha ao enviar mensagem: %w", err)
@@ -96,7 +98,7 @@ func (c *SQSClient) SendMessage(ctx context.Context, messageBody string) (*sqs.S
 }
 
 // ReceiveMessages recebe mensagens da fila.
-func (c *SQSClient) ReceiveMessages(ctx context.Context, maxMessages int32, waitTimeSeconds int32) (*sqs.ReceiveMessageOutput, error) {
+func (c *SQSClient) ReceiveMessages(maxMessages int32, waitTimeSeconds int32) (*sqs.ReceiveMessageOutput, error) {
 	c.logger.Info("Aguardando para receber mensagens...")
 	input := &sqs.ReceiveMessageInput{
 		QueueUrl:            aws.String(c.QueueURL),
@@ -104,7 +106,7 @@ func (c *SQSClient) ReceiveMessages(ctx context.Context, maxMessages int32, wait
 		WaitTimeSeconds:     waitTimeSeconds, // Long polling
 	}
 
-	result, err := c.Client.ReceiveMessage(ctx, input)
+	result, err := c.Client.ReceiveMessage(c.context, input)
 	if err != nil {
 		c.logger.WithError(err).Error("Falha ao receber mensagens")
 		return nil, fmt.Errorf("falha ao receber mensagens: %w", err)

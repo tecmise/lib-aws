@@ -19,26 +19,25 @@ type S3Client struct {
 	Region      string
 	EndpointURL string
 	logger      *logrus.Entry
+	context     context.Context
 }
 
 // NewS3Client é o construtor que cria e configura o cliente S3.
-func NewS3Client(ctx context.Context, bucket, region, endpointURL string) (*S3Client, error) {
+func NewS3Client(ctx context.Context, bucket, region, endpointURL string, awsKey string, awsSecret string) (*S3Client, error) {
 	logger := logrus.WithFields(logrus.Fields{
 		"component": "S3Client",
 		"bucket":    bucket,
 		"region":    region,
 	})
 
-	// **AQUI ESTÁ A CORREÇÃO COMBINADA:**
 	// 1. Criamos um resolvedor de endpoint customizado usando a função nativa do SDK.
-	//    Isso é mais robusto do que a nossa implementação manual.
 	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, r string, options ...interface{}) (aws.Endpoint, error) {
 		if service == s3.ServiceID && r == region {
 			return aws.Endpoint{
 				URL:               endpointURL,
 				SigningRegion:     region,
 				Source:            aws.EndpointSourceCustom,
-				HostnameImmutable: true, // Importante para evitar que o SDK modifique a URL
+				HostnameImmutable: true,
 			}, nil
 		}
 		// fallback para o resolvedor padrão
@@ -46,7 +45,7 @@ func NewS3Client(ctx context.Context, bucket, region, endpointURL string) (*S3Cl
 	})
 
 	// 2. Forçamos o uso de credenciais estáticas para garantir que a requisição seja assinada.
-	creds := credentials.NewStaticCredentialsProvider("test", "test", "")
+	creds := credentials.NewStaticCredentialsProvider(awsKey, awsSecret, "")
 
 	// 3. Carregamos a configuração com todas as nossas opções.
 	cfg, err := config.LoadDefaultConfig(ctx,
@@ -70,15 +69,16 @@ func NewS3Client(ctx context.Context, bucket, region, endpointURL string) (*S3Cl
 		Region:      region,
 		EndpointURL: endpointURL,
 		logger:      logger,
+		context:     context.Background(),
 	}, nil
 }
 
 // ListObjects lista os objetos na raiz do bucket.
-func (c *S3Client) ListObjects(ctx context.Context) (*s3.ListObjectsV2Output, error) {
+func (c *S3Client) ListObjects() (*s3.ListObjectsV2Output, error) {
 	input := &s3.ListObjectsV2Input{
 		Bucket: aws.String(c.BucketName),
 	}
-	result, err := c.Client.ListObjectsV2(ctx, input)
+	result, err := c.Client.ListObjectsV2(c.context, input)
 	if err != nil {
 		c.logger.WithError(err).Error("Erro ao listar objetos no bucket")
 		return nil, fmt.Errorf("erro ao listar objetos no bucket %s: %w", c.BucketName, err)
@@ -87,14 +87,14 @@ func (c *S3Client) ListObjects(ctx context.Context) (*s3.ListObjectsV2Output, er
 }
 
 // UploadObject envia dados para o bucket S3.
-func (c *S3Client) UploadObject(ctx context.Context, objectKey string, data []byte) (*s3.PutObjectOutput, error) {
+func (c *S3Client) UploadObject(objectKey string, data []byte) (*s3.PutObjectOutput, error) {
 	c.logger.Infof("Iniciando upload para o bucket '%s', chave '%s'", c.BucketName, objectKey)
 	input := &s3.PutObjectInput{
 		Bucket: aws.String(c.BucketName),
 		Key:    aws.String(objectKey),
 		Body:   bytes.NewReader(data),
 	}
-	result, err := c.Client.PutObject(ctx, input)
+	result, err := c.Client.PutObject(c.context, input)
 	if err != nil {
 		c.logger.WithError(err).Errorf("Falha no upload do objeto para a chave '%s'", objectKey)
 		return nil, fmt.Errorf("falha ao fazer upload para %s/%s: %w", c.BucketName, objectKey, err)

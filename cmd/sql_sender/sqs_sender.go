@@ -26,7 +26,7 @@ func main() {
 
 	// 2. Envia uma mensagem
 	mensagem := fmt.Sprintf("Olá, SQS! A hora é %s", time.Now().Format(time.RFC3339))
-	_, err = client.SendMessage(ctx, mensagem)
+	_, err = client.SendMessage(mensagem)
 	if err != nil {
 		log.Fatalf("Falha ao enviar a mensagem: %v", err)
 	}
