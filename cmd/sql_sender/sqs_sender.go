@@ -13,12 +13,12 @@ func main() {
 	// --- Configurações ---
 	region := "us-east-1"
 	endpointURL := "http://localhost:4566" // Endpoint do LocalStack
-	queueName := "student_sheet"           // Nome da fila no SQS
+	queueName := "student-sheet-queue"     // Nome da fila no SQS
 
 	ctx := context.Background()
 
 	// 1. Cria o cliente SQS
-	client, err := sqsclient.NewSQSClient(ctx, region, endpointURL, queueName)
+	client, err := sqsclient.NewSQSClient(ctx, region, endpointURL, queueName, "test", "test")
 	if err != nil {
 		log.Fatalf("Falha ao criar o cliente SQS: %v", err)
 	}

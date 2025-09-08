@@ -116,14 +116,14 @@ func (c *SQSClient) ReceiveMessages(maxMessages int32, waitTimeSeconds int32) (*
 }
 
 // DeleteMessage apaga uma mensagem da fila após o processamento.
-func (c *SQSClient) DeleteMessage(ctx context.Context, message types.Message) error {
+func (c *SQSClient) DeleteMessage(message types.Message) error {
 	c.logger.Infof("Apagando mensagem ID: %s", *message.MessageId)
 	input := &sqs.DeleteMessageInput{
 		QueueUrl:      aws.String(c.QueueURL),
 		ReceiptHandle: message.ReceiptHandle,
 	}
 
-	_, err := c.Client.DeleteMessage(ctx, input)
+	_, err := c.Client.DeleteMessage(c.context, input)
 	if err != nil {
 		c.logger.WithError(err).Errorf("Falha ao apagar mensagem ID: %s", *message.MessageId)
 		return fmt.Errorf("falha ao apagar mensagem: %w", err)

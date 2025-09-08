@@ -10,15 +10,14 @@ import (
 )
 
 func main() {
-	// --- Configurações ---
 	region := "us-east-1"
 	endpointURL := "http://localhost:4566"
-	queueName := "minha-fila-teste"
+	queueName := "student-sheet-queue"
 
 	ctx := context.Background()
 
 	// 1. Cria o cliente SQS
-	client, err := sqsclient.NewSQSClient(ctx, region, endpointURL, queueName)
+	client, err := sqsclient.NewSQSClient(ctx, region, endpointURL, queueName, "test", "test")
 	if err != nil {
 		log.Fatalf("Falha ao criar o cliente SQS: %v", err)
 	}
@@ -26,7 +25,7 @@ func main() {
 
 	// 2. Loop infinito para receber mensagens (Long Polling)
 	for {
-		output, err := client.ReceiveMessages(ctx, 10, 20) // Recebe até 10 msgs, espera até 20 seg
+		output, err := client.ReceiveMessages(10, 20) // Recebe até 10 msgs, espera até 20 seg
 		if err != nil {
 			log.Printf("Erro ao receber mensagens: %v. Tentando novamente em 5 segundos...", err)
 			time.Sleep(5 * time.Second)
@@ -46,7 +45,7 @@ func main() {
 			fmt.Printf("    Conteúdo: %s\n", *msg.Body)
 
 			// Apaga a mensagem da fila para não ser processada novamente
-			err := client.DeleteMessage(ctx, msg)
+			err := client.DeleteMessage(msg)
 			if err != nil {
 				log.Printf("    ERRO ao apagar mensagem ID %s: %v", *msg.MessageId, err)
 			}

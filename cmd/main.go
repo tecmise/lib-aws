@@ -17,7 +17,7 @@ func main() {
 	ctx := context.Background()
 
 	// 2. CORREÇÃO: Use o apelido 's3client' que você definiu na importação
-	client, err := s3client.NewS3Client(ctx, bucket, region, endpointURL)
+	client, err := s3client.NewS3Client(ctx, bucket, region, endpointURL, "test", "test")
 	if err != nil {
 		log.Fatalf("Falha ao criar o cliente S3: %v", err)
 	}
@@ -30,7 +30,7 @@ func main() {
 
 	// 3. Faz o upload do objeto
 	fmt.Printf("Fazendo upload do arquivo '%s' para o bucket '%s'...\n", nomeDoArquivo, bucket)
-	_, err = client.UploadObject(ctx, nomeDoArquivo, conteudoDoArquivo)
+	_, err = client.UploadObject(nomeDoArquivo, conteudoDoArquivo)
 	if err != nil {
 		log.Fatalf("Falha ao fazer upload do objeto: %v", err)
 	}
@@ -39,7 +39,7 @@ func main() {
 	fmt.Printf("Tentando listar objetos no bucket '%s'...\n", bucket)
 
 	// Lista os objetos no bucket.
-	output, err := client.ListObjects(ctx)
+	output, err := client.ListObjects()
 	if err != nil {
 		log.Fatalf("Falha ao listar objetos: %v", err)
 	}

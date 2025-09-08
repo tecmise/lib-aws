@@ -22,6 +22,12 @@ type S3Client struct {
 	context     context.Context
 }
 
+type UploadResult struct {
+	URL       string
+	ETag      string
+	VersionID string
+}
+
 // NewS3Client é o construtor que cria e configura o cliente S3.
 func NewS3Client(ctx context.Context, bucket, region, endpointURL string, awsKey string, awsSecret string) (*S3Client, error) {
 	logger := logrus.WithFields(logrus.Fields{
@@ -86,8 +92,22 @@ func (c *S3Client) ListObjects() (*s3.ListObjectsV2Output, error) {
 	return result, nil
 }
 
+// ListObjectsByPrefix lista os objetos com um prefixo específico.
+func (c *S3Client) ListObjectsByPrefix(prefix string) (*s3.ListObjectsV2Output, error) {
+	input := &s3.ListObjectsV2Input{
+		Bucket: aws.String(c.BucketName),
+		Prefix: aws.String(prefix),
+	}
+	result, err := c.Client.ListObjectsV2(c.context, input)
+	if err != nil {
+		c.logger.WithError(err).Error("Erro ao listar objetos no bucket")
+		return nil, fmt.Errorf("erro ao listar objetos no bucket %s: %w", c.BucketName, err)
+	}
+	return result, nil
+}
+
 // UploadObject envia dados para o bucket S3.
-func (c *S3Client) UploadObject(objectKey string, data []byte) (*s3.PutObjectOutput, error) {
+func (c *S3Client) UploadObject(objectKey string, data []byte) (*UploadResult, error) {
 	c.logger.Infof("Iniciando upload para o bucket '%s', chave '%s'", c.BucketName, objectKey)
 	input := &s3.PutObjectInput{
 		Bucket: aws.String(c.BucketName),
@@ -99,6 +119,18 @@ func (c *S3Client) UploadObject(objectKey string, data []byte) (*s3.PutObjectOut
 		c.logger.WithError(err).Errorf("Falha no upload do objeto para a chave '%s'", objectKey)
 		return nil, fmt.Errorf("falha ao fazer upload para %s/%s: %w", c.BucketName, objectKey, err)
 	}
-	c.logger.Infof("Upload para a chave '%s' concluído com sucesso", objectKey)
-	return result, nil
+
+	objectURL := c.BucketName + "/" + objectKey
+
+	uploadResult := &UploadResult{
+		URL: objectURL,
+	}
+
+	if result.ETag != nil {
+		uploadResult.ETag = *result.ETag
+	}
+
+	c.logger.Infof("Upload para a chave '%s' concluído com sucesso. URL: %s", objectKey, objectURL)
+	return uploadResult, nil
+
 }
