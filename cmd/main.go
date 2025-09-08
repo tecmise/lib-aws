@@ -53,4 +53,11 @@ func main() {
 			fmt.Printf("- Chave: %s, Tamanho: %d\n", *object.Key, object.Size)
 		}
 	}
+
+	file, err := client.GetObject(nomeDoArquivo)
+	if err != nil {
+		log.Fatalf("Falha ao listar objetos: %v", err)
+	}
+
+	fmt.Println("Objeto encontrado:", string(file))
 }
