@@ -42,6 +42,20 @@ func main() {
 	output, err := client.ListObjects()
 	if err != nil {
 		log.Fatalf("Falha ao listar objetos: %v", err)
+	} // Lista os objetos no bucket.
+	// Exibe os objetos encontrados.
+	if len(output.Contents) == 0 {
+		fmt.Println("Nenhum objeto encontrado.")
+	} else {
+		fmt.Println("Objetos encontrados:")
+		for _, object := range output.Contents {
+			fmt.Printf("- Chave: %s, Tamanho: %d\n", *object.Key, object.Size)
+		}
+	}
+
+	output, err = client.ListObjectsByPrefix(nomeDoArquivo)
+	if err != nil {
+		log.Fatalf("Falha ao listar objetos: %v", err)
 	}
 
 	// Exibe os objetos encontrados.
