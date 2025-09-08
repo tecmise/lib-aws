@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -106,6 +107,33 @@ func (c *S3Client) ListObjectsByPrefix(prefix string) (*s3.ListObjectsV2Output, 
 	return result, nil
 }
 
+// GetObject downloads an object from the S3 bucket.
+func (c *S3Client) GetObject(objectKey string) ([]byte, error) {
+	c.logger.Infof("Iniciando download do objeto '%s' do bucket '%s'", objectKey, c.BucketName)
+	
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(c.BucketName),
+		Key:    aws.String(objectKey),
+	}
+
+	result, err := c.Client.GetObject(c.context, input)
+	if err != nil {
+		c.logger.WithError(err).Errorf("Falha ao baixar o objeto com a chave '%s'", objectKey)
+		return nil, fmt.Errorf("falha ao baixar o objeto %s/%s: %w", c.BucketName, objectKey, err)
+	}
+	defer result.Body.Close()
+
+	// Read the entire object into memory
+	data, err := io.ReadAll(result.Body)
+	if err != nil {
+		c.logger.WithError(err).Errorf("Falha ao ler o conteúdo do objeto com a chave '%s'", objectKey)
+		return nil, fmt.Errorf("falha ao ler o conteúdo do objeto %s/%s: %w", c.BucketName, objectKey, err)
+	}
+
+	c.logger.Infof("Download do objeto '%s' concluído com sucesso. Tamanho: %d bytes", objectKey, len(data))
+	return data, nil
+}
+
 // UploadObject envia dados para o bucket S3.
 func (c *S3Client) UploadObject(objectKey string, data []byte) (*UploadResult, error) {
 	c.logger.Infof("Iniciando upload para o bucket '%s', chave '%s'", c.BucketName, objectKey)
@@ -134,3 +162,5 @@ func (c *S3Client) UploadObject(objectKey string, data []byte) (*UploadResult, e
 	return uploadResult, nil
 
 }
+
+
