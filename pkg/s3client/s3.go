@@ -37,7 +37,6 @@ func NewS3Client(ctx context.Context, bucket, region, endpointURL string, awsKey
 		"region":    region,
 	})
 
-	// 1. Criamos um resolvedor de endpoint customizado usando a função nativa do SDK.
 	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, r string, options ...interface{}) (aws.Endpoint, error) {
 		if service == s3.ServiceID && r == region {
 			return aws.Endpoint{
@@ -110,7 +109,7 @@ func (c *S3Client) ListObjectsByPrefix(prefix string) (*s3.ListObjectsV2Output, 
 // GetObject downloads an object from the S3 bucket.
 func (c *S3Client) GetObject(objectKey string) ([]byte, error) {
 	c.logger.Infof("Iniciando download do objeto '%s' do bucket '%s'", objectKey, c.BucketName)
-	
+
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(c.BucketName),
 		Key:    aws.String(objectKey),
@@ -162,5 +161,3 @@ func (c *S3Client) UploadObject(objectKey string, data []byte) (*UploadResult, e
 	return uploadResult, nil
 
 }
-
-

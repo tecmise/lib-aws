@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
@@ -30,35 +29,29 @@ func NewSQSClient(ctx context.Context, region, endpointURL, queueName string, aw
 		"region":     region,
 	})
 
-	// Resolvedor de endpoint customizado para o LocalStack
-	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, r string, options ...interface{}) (aws.Endpoint, error) {
-		if service == sqs.ServiceID && r == region {
-			return aws.Endpoint{
-				URL:               endpointURL,
-				SigningRegion:     region,
-				Source:            aws.EndpointSourceCustom,
-				HostnameImmutable: true,
-			}, nil
-		}
-		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
-	})
+	var cfg aws.Config
+	var err error
 
-	// Credenciais "falsas" para acionar a assinatura SigV4
-	creds := credentials.NewStaticCredentialsProvider(awsKey, awsSecret, "")
-
-	cfg, err := config.LoadDefaultConfig(ctx,
-		config.WithRegion(region),
-		config.WithCredentialsProvider(creds),
-		config.WithEndpointResolverWithOptions(customResolver),
-	)
 	if err != nil {
 		logger.WithError(err).Error("Erro ao carregar a configuração do SDK da AWS")
 		return nil, fmt.Errorf("erro ao carregar a configuração do SDK: %w", err)
 	}
 
-	sqsClient := sqs.NewFromConfig(cfg)
+	var sqsClient *sqs.Client
 
-	// Precisamos obter a URL da fila a partir do nome dela
+	if endpointURL == "" {
+		logrus.Warn("create sqs without endpoint")
+		sqsClient = sqs.NewFromConfig(cfg)
+	} else {
+		sqsClient = sqs.NewFromConfig(cfg, func(options *sqs.Options) {
+			options.BaseEndpoint = aws.String(endpointURL)
+			options.EndpointResolverV2 = sqsEndpointResolver{}
+			if awsKey != "" && awsSecret != "" {
+				options.Credentials = credentials.NewStaticCredentialsProvider(awsKey, awsSecret, "")
+			}
+		})
+	}
+
 	urlResult, err := sqsClient.GetQueueUrl(ctx, &sqs.GetQueueUrlInput{
 		QueueName: aws.String(queueName),
 	})
@@ -123,11 +116,13 @@ func (c *SQSClient) DeleteMessage(message types.Message) error {
 		ReceiptHandle: message.ReceiptHandle,
 	}
 
-	_, err := c.Client.DeleteMessage(c.context, input)
+	result, err := c.Client.DeleteMessage(c.context, input)
 	if err != nil {
 		c.logger.WithError(err).Errorf("Falha ao apagar mensagem ID: %s", *message.MessageId)
 		return fmt.Errorf("falha ao apagar mensagem: %w", err)
 	}
+
+	c.logger.Infof("Result %v", result.ResultMetadata)
 
 	c.logger.Infof("Mensagem ID: %s apagada com sucesso", *message.MessageId)
 	return nil
