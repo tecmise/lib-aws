@@ -9,15 +9,19 @@ import (
 )
 
 func main() {
-	bucket := "bucket-dev"
-	region := "us-east-1"
-	endpointURL := "http://localhost:4566"
+	c := s3client.Config{
+		BucketName:  "s4s",
+		Region:      "us-east-1",
+		EndpointURL: "http://localhost:4566",
+		AwsKey:      "test",
+		AwsSecret:   "test",
+	}
 
 	// Cria um contexto.
 	ctx := context.Background()
-
 	// 2. CORREÇÃO: Use o apelido 's3client' que você definiu na importação
-	client, err := s3client.NewS3Client(ctx, bucket, region, endpointURL, "test", "test")
+	client, err := s3client.NewS3Client(ctx, c)
+
 	if err != nil {
 		log.Fatalf("Falha ao criar o cliente S3: %v", err)
 	}
@@ -29,17 +33,17 @@ func main() {
 	conteudoDoArquivo := []byte("Olá, S3! Este é o conteúdo do meu primeiro arquivo.")
 
 	// 3. Faz o upload do objeto
-	fmt.Printf("Fazendo upload do arquivo '%s' para o bucket '%s'...\n", nomeDoArquivo, bucket)
-	_, err = client.UploadObject(nomeDoArquivo, conteudoDoArquivo)
+	fmt.Printf("Fazendo upload do arquivo '%s' para o bucket '%s'...\n", nomeDoArquivo, c.BucketName)
+	_, err = client.UploadObject(ctx, nomeDoArquivo, conteudoDoArquivo)
 	if err != nil {
 		log.Fatalf("Falha ao fazer upload do objeto: %v", err)
 	}
 	fmt.Println("Upload concluído com sucesso!")
 
-	fmt.Printf("Tentando listar objetos no bucket '%s'...\n", bucket)
+	fmt.Printf("Tentando listar objetos no bucket '%s'...\n", c.BucketName)
 
 	// Lista os objetos no bucket.
-	output, err := client.ListObjects()
+	output, err := client.ListObjects(ctx)
 	if err != nil {
 		log.Fatalf("Falha ao listar objetos: %v", err)
 	} // Lista os objetos no bucket.
@@ -53,7 +57,7 @@ func main() {
 		}
 	}
 
-	output, err = client.ListObjectsByPrefix(nomeDoArquivo)
+	output, err = client.ListObjectsByPrefix(ctx, nomeDoArquivo)
 	if err != nil {
 		log.Fatalf("Falha ao listar objetos: %v", err)
 	}
@@ -68,7 +72,7 @@ func main() {
 		}
 	}
 
-	file, err := client.GetObject(nomeDoArquivo)
+	file, err := client.GetObject(ctx, nomeDoArquivo)
 	if err != nil {
 		log.Fatalf("Falha ao listar objetos: %v", err)
 	}
