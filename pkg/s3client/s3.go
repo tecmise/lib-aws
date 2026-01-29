@@ -170,3 +170,22 @@ func (c *S3Client) UploadObject(ctx context.Context, objectKey string, data []by
 	return uploadResult, nil
 
 }
+
+// DeleteObject remove um objeto do bucket S3 usando a chave fornecida.
+func (c *S3Client) DeleteObject(ctx context.Context, objectKey string) error {
+	c.logger.Infof("Iniciando exclusão do objeto '%s' do bucket '%s'", objectKey, c.BucketName)
+
+	input := &s3.DeleteObjectInput{
+		Bucket: aws.String(c.BucketName),
+		Key:    aws.String(objectKey),
+	}
+
+	_, err := c.Client.DeleteObject(ctx, input)
+	if err != nil {
+		c.logger.WithError(err).Errorf("Falha ao excluir o objeto com a chave '%s'", objectKey)
+		return fmt.Errorf("falha ao excluir o objeto %s/%s: %w", c.BucketName, objectKey, err)
+	}
+
+	c.logger.Infof("Objeto '%s' excluído com sucesso do bucket '%s'", objectKey, c.BucketName)
+	return nil
+}
