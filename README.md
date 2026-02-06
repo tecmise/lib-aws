@@ -1,1 +1,1 @@
-# lib-aws
+DEPRECATED LIBRARY
